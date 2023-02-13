@@ -91,6 +91,7 @@ class Expr:
     def __call__(self, *args):
         """Self must be a symbol with no args, such as Expr('F').  Create a new
         Expr with 'F' as op and the args as arguments."""
+        print(f"sself.op: {self.op}")
         assert is_symbol(self.op) and not self.args
         return Expr(self.op, *args)
 

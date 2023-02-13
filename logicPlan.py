@@ -227,16 +227,8 @@ def pacmanSuccessorAxiomSingle(x: int, y: int, time: int, walls_grid: List[List[
         return None
     
     "*** BEGIN YOUR CODE HERE ***"
-    if time > 0:
-        current = PropSymbolExpr(pacman_str, x, y, time=now)
-        newlist = []
-        for cause in possible_causes:
-            newlist.append(current % cause)
 
-        print(disjoin(newlist))
-        return disjoin(newlist)
-    else:
-        raise Exception("Negative time")
+    return PropSymbolExpr(pacman_str, x, y, time=time) % disjoin(possible_causes)
 
     "*** END YOUR CODE HERE ***"
 
@@ -310,19 +302,32 @@ def pacphysicsAxioms(t: int, all_coords: List[Tuple], non_outer_wall_coords: Lis
     "*** BEGIN YOUR CODE HERE ***"
     coords_implies = []
     for x,y in all_coords:
-        coords_implies.append(walls_grid[x][y] >>  pacmanSuccessorAxiomSingle(x, y, t))
-    sentence_2 = exactlyOne([pacmanSuccessorAxiomSingle(x,y,t) for x,y in non_outer_wall_coords])
+        coords_implies.append(PropSymbolExpr(wall_str, x, y) >> ~PropSymbolExpr(pacman_str, x, y, time=t))
+    sentence_1 = conjoin(coords_implies)
+    sentence_2 = exactlyOne([PropSymbolExpr(pacman_str, x, y, time=t) for x, y in non_outer_wall_coords])
     sentence_3 = exactlyOne([PropSymbolExpr(action, time=t) for action in DIRECTIONS])
     sentence_4 = None
     if sensorModel:
         sentence_4 = sensorModel(t, non_outer_wall_coords)
-    sentence_5 = successorAxioms(t, walls_grid, non_outer_wall_coords)
-    sentences = {coords_implies, sentence_2, sentence_3, sentence_4, sentence_5}
+    sentence_5 = None
+    if walls_grid and successorAxioms and t > 0:
+        #print("trying sentence 5")
+        #print(successorAxioms)
+        #list = []
+        #list.append(successorAxioms)
+        #print(list)
+
+        #print(f"walls grid: {walls_grid}, nonouter: {non_outer_wall_coords}, time: {t}")
+        #successorAxioms(t, walls_grid, non_outer_wall_coords)
+        sentence_5 = successorAxioms(t, walls_grid, non_outer_wall_coords)
+       # print("sentence 5 passed")
+    sentences = [sentence_1, sentence_2, sentence_3, sentence_4, sentence_5]
     for sentence in sentences:
         if sentence:
             pacphysics_sentences.append(sentence)
     #cords_sentence = [walls_grid[x][y] >> for x,y in all_coords]
     "*** END YOUR CODE HERE ***"
+    #print(f"pacphysics sentence: {pacphysics_sentences}")
 
     return conjoin(pacphysics_sentences)
 
@@ -355,20 +360,26 @@ def checkLocationSatisfiability(x1_y1: Tuple[int, int], x0_y0: Tuple[int, int], 
     KB.append(conjoin(map_sent))
 
     "*** BEGIN YOUR CODE HERE ***"
-    #append the pacphysics axioms for time = 0 and time = 1
+    #append the pacphysics axioms for time = 1
+    successors = allLegalSuccessorAxioms(1, walls_grid, non_outer_wall_coords)
+    #print("all legal axioms")
+    #print(successors)
+    #print("\n")
     KB.append(pacphysicsAxioms(0, all_coords, non_outer_wall_coords,
-                               walls_grid, None, allLegalSuccessorAxioms(1, walls_grid, non_outer_wall_coords)))
+                               walls_grid, None, allLegalSuccessorAxioms))
     KB.append(pacphysicsAxioms(1, all_coords, non_outer_wall_coords,
-                               walls_grid, None, allLegalSuccessorAxioms(2, walls_grid, non_outer_wall_coords)))
+                               walls_grid, None, allLegalSuccessorAxioms))
     #append pacman's current location (x0, y0)
-    KB.append(x0_y0)
+    KB.append(PropSymbolExpr(pacman_str, x0, y0, time=0))
+    #KB.append((x0, y0))
     #append pacman takes action0
-    KB.append(action0)
+    KB.append(PropSymbolExpr(action0, time=0))
     #append pacman takes action1
-    KB.append(action1)
-    KB_conj = conjoin([KB])
-    model_1_conc = PropSymbolExpr(pacman_str, x1_y1, time=1)
-    model_2_conc = ~PropSymbolExpr(pacman_str, x1_y1, time=1)
+    KB.append(PropSymbolExpr(action1, time=1))
+    #print(KB)
+    KB_conj = conjoin(KB)
+    model_1_conc = PropSymbolExpr(pacman_str, x1, y1, time=1)
+    model_2_conc = ~PropSymbolExpr(pacman_str, x1, y1, time=1)
     model_1 = findModel(conjoin([model_1_conc, KB_conj]))
     model_2 = findModel(conjoin([model_2_conc, KB_conj]))
     return (model_1, model_2)
